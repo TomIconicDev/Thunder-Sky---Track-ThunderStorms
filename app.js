@@ -12,7 +12,6 @@ let userGlMarker = null;
 let selectedStrikeData = null;
 let radarActive = true;
 
-// Initialize MapLibre GL JS engine
 const map = new maplibregl.Map({
   container: 'map',
   style: {
@@ -42,9 +41,6 @@ const map = new maplibregl.Map({
 });
 
 map.on('load', () => {
-  // CRITICAL FIX: Set maxzoom to 6 for the radar source. 
-  // MapLibre will upscale the level 6 data gracefully when zooming in deep,
-  // completely preventing the server from serving the "Zoom Level Not Supported" tile images.
   map.addSource('rainviewer-radar', {
     type: 'raster',
     tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png'],
@@ -59,11 +55,10 @@ map.on('load', () => {
     source: 'rainviewer-radar',
     paint: { 
       'raster-opacity': 0.45,
-      'raster-resampling': 'linear' // Blurs the pixels softly at extreme zooms instead of breaking
+      'raster-resampling': 'linear'
     }
   });
 
-  // Watch zoom events dynamically to clean up UI state strings if needed
   map.on('zoom', handleZoomThresholds);
   map.on('click', closeInspectionSheet);
 });
@@ -75,7 +70,6 @@ function handleZoomThresholds() {
   
   if (!radarActive) return;
 
-  // Visual warning adjustment in the floating pill to notify user radar has reached max coverage
   if (currentZoom > 7) {
     txt.innerText = "Radar Maxed";
     if (dot) dot.style.backgroundColor = "#ff9f0a";
@@ -101,7 +95,8 @@ function createLightningStrike(lat, lon, distance, magnitude) {
   const acousticalDelay = Math.round(distance * 2.91);
 
   const sourceId = `strike-src-${Math.random().toString(36).substr(2, 9)}`;
-  const layerId = `strike-lyr-${sourceId}`;
+  const fillLayerId = `strike-fill-${sourceId}`;
+  const lineLayerId = `strike-line-${sourceId}`;
 
   function getCirclePolygonGeoJSON(centerLng, centerLat, radiusKm) {
     const kmPoints = 64;
@@ -125,14 +120,26 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     data: getCirclePolygonGeoJSON(lon, lat, 0.01)
   });
 
+  // 1. DYNAMIC INNER FILL GLOW
   map.addLayer({
-    id: layerId,
+    id: fillLayerId,
     type: 'fill',
     source: sourceId,
     paint: {
       'fill-color': hexColor,
-      'fill-opacity': 0.15,
-      'fill-outline-color': hexColor
+      'fill-opacity': 0.25 // Higher baseline visibility
+    }
+  });
+
+  // 2. SHARP OUTER BOUNDARY LINE (FIXES THE DIMNESS)
+  map.addLayer({
+    id: lineLayerId,
+    type: 'line',
+    source: sourceId,
+    paint: {
+      'line-color': hexColor,
+      'line-width': 2.5, // Crisp, highly visible border
+      'line-opacity': 0.85
     }
   });
 
@@ -142,7 +149,7 @@ function createLightningStrike(lat, lon, distance, magnitude) {
 
   const strikeTelemetry = { 
     lat, lon, distance, magnitude, milesHeard, acousticalDelay, 
-    intensityClass, sourceId, layerId 
+    intensityClass, sourceId, fillLayerId, lineLayerId 
   };
 
   const expansionLoop = setInterval(() => {
@@ -153,25 +160,28 @@ function createLightningStrike(lat, lon, distance, magnitude) {
       clearInterval(expansionLoop);
       if (map.getSource(sourceId)) {
         map.getSource(sourceId).setData(getCirclePolygonGeoJSON(lon, lat, maxRadiusKm));
-        map.setPaintProperty(layerId, 'fill-opacity', 0.02);
+        map.setPaintProperty(fillLayerId, 'fill-opacity', 0.05);
+        map.setPaintProperty(lineLayerId, 'line-opacity', 0.35);
       }
     } else {
       const progress = currentStep / maxSteps;
       const immediateRadius = maxRadiusKm * progress;
       if (map.getSource(sourceId)) {
         map.getSource(sourceId).setData(getCirclePolygonGeoJSON(lon, lat, immediateRadius));
-        map.setPaintProperty(layerId, 'fill-opacity', 0.15 * (1 - progress));
+        map.setPaintProperty(fillLayerId, 'fill-opacity', 0.25 * (1 - progress));
+        map.setPaintProperty(lineLayerId, 'line-opacity', 0.85 * (1 - progress));
       }
     }
   }, 22);
 
-  map.on('click', layerId, (e) => {
+  // Click inspection handles line or fill intersections gracefully
+  map.on('click', fillLayerId, (e) => {
     e.preventDefault();
     openInspectionSheet(strikeTelemetry);
   });
 
-  map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+  map.on('mouseenter', fillLayerId, () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', fillLayerId, () => map.getCanvas().style.cursor = '');
 
   if (distance < 15) {
     const audio = document.getElementById("thunderAudio");
@@ -185,13 +195,14 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     if (selectedStrikeData && selectedStrikeData.sourceId === sourceId) {
       strikeTelemetry.isOrphanedPending = true;
     } else {
-      cleanupStrikeLayers(layerId, sourceId);
+      cleanupStrikeLayers(lineLayerId, fillLayerId, sourceId);
     }
   }, 180000);
 }
 
-function cleanupStrikeLayers(layerId, sourceId) {
-  if (map.getLayer(layerId)) map.removeLayer(layerId);
+function cleanupStrikeLayers(lineLayerId, fillLayerId, sourceId) {
+  if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+  if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
   if (map.getSource(sourceId)) map.removeSource(sourceId);
 }
 
@@ -224,7 +235,7 @@ function closeInspectionSheet() {
   document.getElementById("radar-toggle-container").style.opacity = "1";
 
   if (closedData.isOrphanedPending) {
-    cleanupStrikeLayers(closedData.layerId, closedData.sourceId);
+    cleanupStrikeLayers(closedData.lineLayerId, closedData.fillLayerId, closedData.sourceId);
   }
 }
 
@@ -296,7 +307,6 @@ document.getElementById('recenter-btn').addEventListener('click', () => {
   }
 });
 
-// Floating Radar HUD Visibility Toggler Button
 document.getElementById('radar-toggle').addEventListener('click', () => {
   const radarBtn = document.getElementById('radar-toggle');
   const txt = document.getElementById('radar-status-text');
