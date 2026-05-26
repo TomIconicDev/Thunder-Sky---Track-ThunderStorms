@@ -10,8 +10,9 @@ let currentRegion = 'uk';
 let userPosition = null;
 let userGlMarker = null;
 let selectedStrikeData = null;
+let radarActive = true;
 
-// Initialize MapLibre GL JS engine using completely open and free tile server architectures
+// Initialize MapLibre GL JS engine
 const map = new maplibregl.Map({
   container: 'map',
   style: {
@@ -30,7 +31,7 @@ const map = new maplibregl.Map({
         type: 'raster',
         source: 'dark-matter-tiles',
         minzoom: 0,
-        maxzoom: 20 // Handles high zoom thresholds seamlessly by re-sampling tiles natively
+        maxzoom: 20
       }
     ]
   },
@@ -41,23 +42,48 @@ const map = new maplibregl.Map({
 });
 
 map.on('load', () => {
-  // Inject streaming weather precipitation reflection radar sources directly into WebGL memory stack
+  // CRITICAL FIX: Set maxzoom to 6 for the radar source. 
+  // MapLibre will upscale the level 6 data gracefully when zooming in deep,
+  // completely preventing the server from serving the "Zoom Level Not Supported" tile images.
   map.addSource('rainviewer-radar', {
     type: 'raster',
     tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png'],
-    tileSize: 256
+    tileSize: 256,
+    minzoom: 0,
+    maxzoom: 6 
   });
 
   map.addLayer({
     id: 'radar-layer',
     type: 'raster',
     source: 'rainviewer-radar',
-    paint: { 'raster-opacity': 0.42 }
+    paint: { 
+      'raster-opacity': 0.45,
+      'raster-resampling': 'linear' // Blurs the pixels softly at extreme zooms instead of breaking
+    }
   });
 
-  // Track global dismiss triggers on the map canvas
+  // Watch zoom events dynamically to clean up UI state strings if needed
+  map.on('zoom', handleZoomThresholds);
   map.on('click', closeInspectionSheet);
 });
+
+function handleZoomThresholds() {
+  const currentZoom = map.getZoom();
+  const txt = document.getElementById('radar-status-text');
+  const dot = document.querySelector('.radar-pulse-dot');
+  
+  if (!radarActive) return;
+
+  // Visual warning adjustment in the floating pill to notify user radar has reached max coverage
+  if (currentZoom > 7) {
+    txt.innerText = "Radar Maxed";
+    if (dot) dot.style.backgroundColor = "#ff9f0a";
+  } else {
+    txt.innerText = "Radar Active";
+    if (dot) dot.style.backgroundColor = "#ffd60a";
+  }
+}
 
 function createLightningStrike(lat, lon, distance, magnitude) {
   let hexColor = '#ffd60a';
@@ -74,30 +100,26 @@ function createLightningStrike(lat, lon, distance, magnitude) {
   const milesHeard = parseFloat((magnitude * 1.9).toFixed(1));
   const acousticalDelay = Math.round(distance * 2.91);
 
-  // Generate unique feature ID signatures to manage the geometric shapes independently
   const sourceId = `strike-src-${Math.random().toString(36).substr(2, 9)}`;
   const layerId = `strike-lyr-${sourceId}`;
 
-  // Helper utility to translate real-world radius expansion steps into geographic GeoJSON coordinate arrays
   function getCirclePolygonGeoJSON(centerLng, centerLat, radiusKm) {
     const kmPoints = 64;
     const coordinates = [];
     for (let i = 0; i < kmPoints; i++) {
       const angle = (i * 360) / kmPoints;
       const radians = (angle * Math.PI) / 180;
-      // Degrees conversions mapping equations
       const degreesLon = centerLng + (radiusKm / 111.32) * Math.cos(radians) / Math.cos(centerLat * Math.PI / 180);
       const degreesLat = centerLat + (radiusKm / 110.57) * Math.sin(radians);
       coordinates.push([degreesLon, degreesLat]);
     }
-    coordinates.push(coordinates[0]); // Complete structural geometric polygon ring loop closure
+    coordinates.push(coordinates[0]);
     return {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [coordinates] }
     };
   }
 
-  // Inject empty starting node source properties directly inside MapLibre runtime layout
   map.addSource(sourceId, {
     type: 'geojson',
     data: getCirclePolygonGeoJSON(lon, lat, 0.01)
@@ -143,13 +165,11 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     }
   }, 22);
 
-  // MapLibre cursor inspection tap click interception triggers
   map.on('click', layerId, (e) => {
     e.preventDefault();
     openInspectionSheet(strikeTelemetry);
   });
 
-  // Mouse hover event changes map canvas cursor styles cleanly
   map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
   map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
 
@@ -161,7 +181,6 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     }
   }
 
-  // Lifespan Garbage Sweep: Wipe vector allocations out of WebGL frame memory after exactly 3 minutes
   setTimeout(() => {
     if (selectedStrikeData && selectedStrikeData.sourceId === sourceId) {
       strikeTelemetry.isOrphanedPending = true;
@@ -189,7 +208,6 @@ function openInspectionSheet(telemetry) {
   document.getElementById("inspect-range").innerText = `${telemetry.milesHeard} miles`;
   document.getElementById("inspect-coords").innerText = `${telemetry.lat.toFixed(4)}, ${telemetry.lon.toFixed(4)}`;
 
-  // UI Transformation pushes bottom HUD element away while sliding sheet up
   document.getElementById("radar-toggle-container").style.transform = "translateY(150%)";
   document.getElementById("radar-toggle-container").style.opacity = "0";
   document.getElementById("detail-sheet").classList.add("visible");
@@ -210,7 +228,6 @@ function closeInspectionSheet() {
   }
 }
 
-// Native HTML5 Mobile Share action payload injection setup
 document.getElementById('share-strike-btn').addEventListener('click', async () => {
   if (!selectedStrikeData) return;
   
@@ -223,7 +240,7 @@ document.getElementById('share-strike-btn').addEventListener('click', async () =
   } else {
     try {
       await navigator.clipboard.writeText(shareText);
-      alert("Telemetry payload copied securely to structural clipboard!");
+      alert("Telemetry payload copied securely to clipboard!");
     } catch (err) {}
   }
 });
@@ -242,22 +259,21 @@ function randomLightning() {
 
 let strikeTimer = setInterval(randomLightning, 3800);
 
-// Hardware Geolocation Native Pipeline Loop
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition((pos) => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
-    userPosition = [lon, lat]; // MapLibre takes coordinates formatted as [Lng, Lat]
+    userPosition = [lon, lat];
 
     const el = document.createElement('div');
     el.className = 'custom-gl-user-node';
 
     if (!userGlMarker) {
       userGlMarker = new maplibregl.Marker({ element: el })
-        .setLatLng(userPosition)
+        .setLngLat(userPosition)
         .addTo(map);
     } else {
-      userGlMarker.setLatLng(userPosition);
+      userGlMarker.setLngLat(userPosition);
     }
   }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
 }
@@ -284,11 +300,14 @@ document.getElementById('recenter-btn').addEventListener('click', () => {
 document.getElementById('radar-toggle').addEventListener('click', () => {
   const radarBtn = document.getElementById('radar-toggle');
   const txt = document.getElementById('radar-status-text');
+  const dot = document.querySelector('.radar-pulse-dot');
   
   if (map.getLayer('radar-layer')) {
     map.removeLayer('radar-layer');
     radarBtn.classList.remove('active');
-    txt.innerText = "Radar Muted";
+    txt.innerText = "Radar Off";
+    radarActive = false;
+    if (dot) dot.style.backgroundColor = "#aeaeae";
   } else {
     map.addLayer({
       id: 'radar-layer',
@@ -297,10 +316,7 @@ document.getElementById('radar-toggle').addEventListener('click', () => {
       paint: { 'raster-opacity': 0.42 }
     });
     radarBtn.classList.add('active');
-    txt.innerText = "Radar Active";
+    radarActive = true;
+    handleZoomThresholds();
   }
 });
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
