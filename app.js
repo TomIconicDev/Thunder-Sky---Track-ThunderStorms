@@ -14,8 +14,9 @@ let selectedStrikeData = null;
 let threeRadarLayer = null;
 let radarMeshGroup = null;
 let isRadarVisible = true;
+let cloudTexture = null;
 
-// Initialize MapLibre GL JS engine with standard open-source night styling
+// Initialize MapLibre GL JS engine
 const map = new maplibregl.Map({
   container: 'map',
   style: {
@@ -44,8 +45,29 @@ const map = new maplibregl.Map({
   attributionControl: false
 });
 
+// Helper: Generates a high-fidelity soft procedural cloud smoke texture dynamically
+function createProceduralCloudTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  
+  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');   // Dense core
+  gradient.addColorStop(0.2, 'rgba(240, 245, 255, 0.8)'); // Mid-cloud body
+  gradient.addColorStop(0.5, 'rgba(100, 200, 255, 0.3)'); // Soft moisture fringe
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');           // Fully feathered edge
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
 map.on('load', () => {
-  // INITIALIZE THREE.JS WEBGL STORM CELL RADAR OVERLAY LAYER
+  cloudTexture = createProceduralCloudTexture();
+
+  // INITIALIZE THREE.JS IMMERSIVE WEATHER RADAR OVERLAY
   threeRadarLayer = {
     id: 'three-radar-layer',
     type: 'custom',
@@ -54,64 +76,8 @@ map.on('load', () => {
       this.camera = new THREE.PerspectiveCamera();
       this.scene = new THREE.Scene();
 
-      radarMeshGroup = new THREE.Group();
-      
-      // Dynamic Volumetric Storm Cell Array Generator
-      // Generates overlapping glowing clouds with soft, realistic night-time illumination shading
-      const stormCellCount = 450;
-      const particleGeo = new THREE.BufferGeometry();
-      const positions = [];
-      const colors = [];
-      
-      const regionBounds = countryConfig[currentRegion].bounds;
-      
-      for (let i = 0; i < stormCellCount; i++) {
-        // Distribute coordinates organically across active localized tracking matrices
-        const lon = regionBounds[0] + Math.random() * (regionBounds[2] - regionBounds[0]);
-        const lat = regionBounds[1] + Math.random() * (regionBounds[3] - regionBounds[1]);
-        
-        // Project spatial coordinate transformations directly into MapLibre Mercator vector matrix positions
-        const coord = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], 4000 + Math.random() * 2500);
-        positions.push(coord.x, coord.y, coord.z);
-
-        // Dark Atmospheric Shading: Deep storm indigo bleeding into soft city-glowing neon cyan
-        const mixingRatio = Math.random();
-        const r = THREE.MathUtils.lerp(0.02, 0.00, mixingRatio);
-        const g = THREE.MathUtils.lerp(0.35, 0.65, mixingRatio);
-        const b = THREE.MathUtils.lerp(0.60, 0.95, mixingRatio);
-        colors.push(r, g, b);
-      }
-
-      particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      particleGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-      // Generate a dynamic, procedural high-fidelity canvas glow particle map texture
-      const canvas = document.createElement('canvas');
-      canvas.width = 32;
-      canvas.height = 32;
-      const ctx = canvas.getContext('2d');
-      const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
-      gradient.addColorStop(0.3, 'rgba(0, 180, 255, 0.35)');
-      gradient.addColorStop(1, 'rgba(0, 30, 80, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 32, 32);
-
-      const texture = new THREE.CanvasTexture(canvas);
-
-      const particleMat = new THREE.PointsMaterial({
-        size: 0.015, // Smooth scaling sizes calculated natively via vector matrix dimensions
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.52,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        map: texture
-      });
-
-      const stormPoints = new THREE.Points(particleGeo, particleMat);
-      radarMeshGroup.add(stormPoints);
-      this.scene.add(radarMeshGroup);
+      // Build weather formations
+      buildStormCells(this.scene);
 
       this.renderer = new THREE.WebGLRenderer({
         canvas: mapInstance.getCanvas(),
@@ -121,17 +87,17 @@ map.on('load', () => {
       this.renderer.autoClear = false;
     },
     render: function (gl, matrix) {
-      // Dynamic camera position syncing calculation routines mapping real-world coordinates onto WebGL scene frames
       const m = new THREE.Matrix4().fromArray(matrix);
-      const l = new THREE.Matrix4()
-        .makeTranslation(0, 0, 0)
-        .scale(new THREE.Vector3(1, 1, 1));
-
-      this.camera.projectionMatrix = m.multiply(l);
+      this.camera.projectionMatrix = m;
       
-      // Animate the cloud deck dynamics cleanly in memory loop stacks
+      // Dynamic internal drift movement of storm cells across the map canvas
       if (radarMeshGroup && isRadarVisible) {
-        radarMeshGroup.rotation.z += 0.00015;
+        radarMeshGroup.children.forEach(cell => {
+          cell.rotation.z += cell.userData.spinSpeed;
+          // Drift slightly northeast dynamically
+          cell.position.x += cell.userData.driftX;
+          cell.position.y -= cell.userData.driftY; 
+        });
       }
 
       this.renderer.resetState();
@@ -146,63 +112,75 @@ map.on('load', () => {
   map.on('click', closeInspectionSheet);
 });
 
+// Generates true visible, clustered volumetric night-shaded storm systems
+function buildStormCells(scene) {
+  radarMeshGroup = new THREE.Group();
+  
+  const bounds = countryConfig[currentRegion].bounds;
+  // Define 3 main heavy localized storm centers to mimic realistic weather arrays
+  const centerCount = 3;
+  const cloudsPerCenter = 25; 
+  
+  // Base geometry plane scaled perfectly for map coordinates
+  const geometry = new THREE.PlaneGeometry(0.025, 0.025);
+
+  for (let c = 0; c < centerCount; c++) {
+    // Pick an anchor point within country boundaries
+    const cLon = bounds[0] + Math.random() * (bounds[2] - bounds[0]);
+    const cLat = bounds[1] + Math.random() * (bounds[3] - bounds[1]);
+
+    for (let i = 0; i < cloudsPerCenter; i++) {
+      // Cluster clouds closely around centers to build thick, seamless weather fronts
+      const lon = cLon + (Math.random() - 0.5) * 1.8;
+      const lat = cLat + (Math.random() - 0.5) * 1.2;
+      
+      // Project directly to Mercator positioning matrix
+      const coord = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], 3000 + Math.random() * 1500);
+
+      // Night shade coloring: Heavy atmospheric teal-greens mixed with stormy indigos
+      const color = new THREE.Color();
+      if (Math.random() > 0.4) {
+        color.setRGB(0.0, 0.45 + Math.random() * 0.25, 0.35 + Math.random() * 0.2); // Intense active front
+      } else {
+        color.setRGB(0.05, 0.15, 0.35); // Dark cloud precipitation shadow
+      }
+
+      const material = new THREE.MeshBasicMaterial({
+        map: cloudTexture,
+        color: color,
+        transparent: true,
+        opacity: 0.35 + (Math.random() * 0.25),
+        blending: THREE.AdditiveBlending, // Glow styling catches night assets beautifully
+        depthWrite: false
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(coord.x, coord.y, coord.z);
+      
+      // Randomize scales and rotations to give organic fluffiness to the fronts
+      const scale = 0.6 + Math.random() * 1.8;
+      mesh.scale.set(scale, scale, 1);
+      mesh.rotation.z = Math.random() * Math.PI;
+
+      // Unique tracking metadata handles custom system animations
+      mesh.userData = {
+        spinSpeed: (Math.random() - 0.5) * 0.002,
+        driftX: (Math.random() * 0.000002),
+        driftY: (Math.random() * 0.000002)
+      };
+
+      radarMeshGroup.add(mesh);
+    }
+  }
+  
+  scene.add(radarMeshGroup);
+}
+
 function regenerateThreeRadarCells() {
   if (!threeRadarLayer || !radarMeshGroup) return;
-  
-  // Wipe and rebuild the particle structures when moving tracking view points across countries
   const scene = threeRadarLayer.scene;
   scene.remove(radarMeshGroup);
-  
-  radarMeshGroup = new THREE.Group();
-  const stormCellCount = 450;
-  const particleGeo = new THREE.BufferGeometry();
-  const positions = [];
-  const colors = [];
-  
-  const regionBounds = countryConfig[currentRegion].bounds;
-  
-  for (let i = 0; i < stormCellCount; i++) {
-    const lon = regionBounds[0] + Math.random() * (regionBounds[2] - regionBounds[0]);
-    const lat = regionBounds[1] + Math.random() * (regionBounds[3] - regionBounds[1]);
-    
-    const coord = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], 4000 + Math.random() * 2500);
-    positions.push(coord.x, coord.y, coord.z);
-
-    const mixingRatio = Math.random();
-    const r = THREE.MathUtils.lerp(0.02, 0.00, mixingRatio);
-    const g = THREE.MathUtils.lerp(0.35, 0.65, mixingRatio);
-    const b = THREE.MathUtils.lerp(0.60, 0.95, mixingRatio);
-    colors.push(r, g, b);
-  }
-
-  particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  particleGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 32;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
-  gradient.addColorStop(0.3, 'rgba(0, 180, 255, 0.35)');
-  gradient.addColorStop(1, 'rgba(0, 30, 80, 0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 32, 32);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const particleMat = new THREE.PointsMaterial({
-    size: 0.015,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.52,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    map: texture
-  });
-
-  const stormPoints = new THREE.Points(particleGeo, particleMat);
-  radarMeshGroup.add(stormPoints);
-  scene.add(radarMeshGroup);
+  buildStormCells(scene);
   map.triggerRepaint();
 }
 
@@ -366,7 +344,7 @@ function closeInspectionSheet() {
 document.getElementById('share-strike-btn').addEventListener('click', async () => {
   if (!selectedStrikeData) return;
   
-  const shareText = `Thunder Sky Alert: Severe Storm Event detected in ${countryConfig[currentRegion].name}! Severity Rating: M ${selectedStrikeData.magnitude.toFixed(1)}, Audible Range: ${selectedStrikeData.milesHeard} miles. Coordinates: ${selectedStrikeData.lat.toFixed(4)}, ${selectedStrikeData.lon.toFixed(4)}`;
+  const shareText = `Thunder Sky Alert: Severe Storm Event detected in ${countryConfig[currentRegion].name}! Severity Rating: M ${selectedStrikeData.magnitude.toFixed(1)}, Audible Range: ${selectedSelectedStrikeData.milesHeard} miles. Coordinates: ${selectedStrikeData.lat.toFixed(4)}, ${selectedStrikeData.lon.toFixed(4)}`;
 
   if (navigator.share) {
     try {
@@ -432,7 +410,6 @@ document.getElementById('recenter-btn').addEventListener('click', () => {
   }
 });
 
-// Floating Radar HUD Visibility Toggler Button
 document.getElementById('radar-toggle').addEventListener('click', () => {
   const radarBtn = document.getElementById('radar-toggle');
   const txt = document.getElementById('radar-status-text');
