@@ -1,10 +1,11 @@
 :root {
-  --bg-glass: rgba(10, 13, 24, 0.65);
+  --bg-glass: rgba(10, 13, 24, 0.7);
   --border-glass: rgba(255, 255, 255, 0.08);
   --text-main: #f5f5f7;
   --text-muted: #86868b;
   --accent-lightning: #ffd60a;
   --accent-blue: #007aff;
+  --accent-critical: #ff453a;
 }
 
 body {
@@ -50,7 +51,7 @@ body {
 .title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .topbar h1 {
@@ -75,9 +76,9 @@ body {
 .status-pulse {
   width: 6px;
   height: 6px;
-  background: #34c759;
+  background: var(--accent-blue);
   border-radius: 50%;
-  box-shadow: 0 0 8px #34c759;
+  box-shadow: 0 0 8px var(--accent-blue);
 }
 
 .selector-group {
@@ -118,14 +119,14 @@ body {
   max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 1000;
 }
 
 .metrics-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .card {
@@ -133,14 +134,14 @@ body {
   border: 1px solid var(--border-glass);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 14px 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .card h2 {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -148,18 +149,47 @@ body {
 }
 
 .card div {
-  margin-top: 8px;
-  font-size: 2rem;
+  margin-top: 6px;
+  font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -0.04em;
   color: #fff;
 }
 
 .card div .unit {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-muted);
   margin-left: 2px;
+}
+
+.metrics-sub-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.sub-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.sub-card .label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.sub-card .value {
+  color: #fff;
+  font-weight: 600;
 }
 
 .control-row {
@@ -168,7 +198,7 @@ body {
   border: 1px solid var(--border-glass);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-radius: 20px;
+  border-radius: 18px;
   padding: 6px;
   gap: 6px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
@@ -180,17 +210,17 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.02);
   color: var(--text-main);
   padding: 12px;
-  border-radius: 14px;
-  font-size: 1.1rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .action-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -207,10 +237,17 @@ body {
 }
 
 .lightning-svg-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: var(--accent-lightning);
-  filter: drop-shadow(0 0 6px rgba(255, 214, 10, 0.8));
+  filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.8));
+}
+
+.lightning-svg-icon.ultra-power {
+  fill: var(--accent-critical);
+  filter: drop-shadow(0 0 8px var(--accent-critical));
+  width: 20px;
+  height: 20px;
 }
 
 .user-marker-wrapper {
