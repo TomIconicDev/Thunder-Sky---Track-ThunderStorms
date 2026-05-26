@@ -1,6 +1,6 @@
 :root {
-  --bg-glass: rgba(10, 13, 24, 0.55);
-  --border-glass: rgba(255, 255, 255, 0.07);
+  --bg-glass: rgba(10, 13, 24, 0.65);
+  --border-glass: rgba(255, 255, 255, 0.08);
   --text-main: #f5f5f7;
   --text-muted: #86868b;
   --accent-lightning: #ffd60a;
@@ -23,14 +23,13 @@ body {
   background: #04050a;
 }
 
-/* Glassmorphic Top HUD Container */
 .topbar {
   position: absolute;
   top: env(safe-area-inset-top, 16px);
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
-  max-width: 440px;
+  max-width: 480px;
   z-index: 1000;
   padding: 14px 20px;
   backdrop-filter: blur(24px);
@@ -45,6 +44,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+}
+
+.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .topbar h1 {
@@ -52,24 +58,12 @@ body {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bolt-accent {
-  color: var(--accent-lightning);
-  filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.6));
 }
 
 .status-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 4px 10px;
-  border-radius: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #status {
@@ -84,22 +78,44 @@ body {
   background: #34c759;
   border-radius: 50%;
   box-shadow: 0 0 8px #34c759;
-  animation: pulse-status 1.8s infinite alternate;
 }
 
-@keyframes pulse-status {
-  0% { opacity: 0.4; }
-  100% { opacity: 1; }
+.selector-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Immersive Bottom HUD Architecture */
+.selector-group label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.selector-group select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+
+.selector-group select option {
+  background: #0d0f18;
+  color: var(--text-main);
+}
+
 .storm-panel {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 16px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
-  max-width: 440px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -129,13 +145,6 @@ body {
   letter-spacing: 0.05em;
   color: var(--text-muted);
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.card h2 i {
-  color: rgba(255, 255, 255, 0.4);
 }
 
 .card div {
@@ -153,7 +162,6 @@ body {
   margin-left: 2px;
 }
 
-/* Controls Grid Dock Row */
 .control-row {
   display: flex;
   background: var(--bg-glass);
@@ -187,69 +195,24 @@ body {
 }
 
 .action-btn.active {
-  background: rgba(0, 122, 255, 0.15);
-  border-color: rgba(0, 122, 255, 0.25);
+  background: rgba(0, 122, 255, 0.12);
+  border-color: rgba(0, 122, 255, 0.2);
   color: #00eaff;
 }
 
-/* Premium Animated Light Strike Mark Layout */
-.lightning-icon-wrapper {
+.lightning-marker-node {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.lightning-icon-inner {
-  font-size: 24px;
-  transform-origin: center;
-  animation: strike-flash-pulse 0.4s ease-out infinite alternate;
-  text-shadow: 0 0 10px #fff, 0 0 20px var(--accent-blue);
-  cursor: pointer;
+.lightning-svg-icon {
+  width: 18px;
+  height: 18px;
+  fill: var(--accent-lightning);
+  filter: drop-shadow(0 0 6px rgba(255, 214, 10, 0.8));
 }
 
-@keyframes strike-flash-pulse {
-  0% { transform: scale(0.85); opacity: 0.7; }
-  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 4px #fff); }
-}
-
-/* FIXED HTML DIVICON EXPANDING SOUNDWAVE RINGS */
-.thunder-ring-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.expanding-ring-element {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid var(--accent-blue);
-  border-radius: 50%;
-  background: rgba(0, 122, 255, 0.03);
-  box-shadow: inset 0 0 12px rgba(0, 122, 255, 0.15);
-  animation: soundwave-outward 4.5s cubic-bezier(0.1, 0.8, 0.25, 1) forwards;
-  pointer-events: none;
-}
-
-@keyframes soundwave-outward {
-  0% {
-    width: 0px;
-    height: 0px;
-    opacity: 1;
-    border-color: #00eaff;
-  }
-  50% {
-    border-color: var(--accent-blue);
-  }
-  100% {
-    width: 600px;
-    height: 600px;
-    opacity: 0;
-  }
-}
-
-/* User Geolocation Pulse Ring Markup */
 .user-marker-wrapper {
   display: flex;
   align-items: center;
@@ -263,37 +226,4 @@ body {
   border: 3px solid var(--accent-blue);
   border-radius: 50%;
   box-shadow: 0 0 14px var(--accent-blue);
-  position: relative;
-  z-index: 2;
-}
-
-.user-gps-pulse {
-  position: absolute;
-  width: 26px;
-  height: 26px;
-  background: rgba(0, 122, 255, 0.25);
-  border-radius: 50%;
-  animation: user-glow 2s infinite ease-out;
-  z-index: 1;
-}
-
-@keyframes user-glow {
-  0% { transform: scale(0.5); opacity: 1; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-/* Background Atmospheric Scanning Sweep effect */
-.radar-scan-line {
-  position: absolute;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: linear-gradient(rgba(0, 122, 255, 0.015) 50%, rgba(0, 234, 255, 0.04) 98%, rgba(0, 234, 255, 0.2) 100%);
-  background-size: 100% 200%;
-  animation: sweep-curtain 6s linear infinite;
-  z-index: 500;
-  pointer-events: none;
-}
-
-@keyframes sweep-curtain {
-  0% { background-position: 0% -200%; }
-  100% { background-position: 0% 200%; }
 }
