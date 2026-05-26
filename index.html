@@ -40,7 +40,7 @@
 
   <div id="map"></div>
 
-  <div class="storm-panel">
+  <div class="storm-panel" id="main-panel">
     <div class="metrics-container">
       <div class="card">
         <h2>Latest Event</h2>
@@ -71,6 +71,35 @@
       <button class="action-btn active" id="radar-toggle" title="Toggle Radar Filter">
         <i class="fa-solid fa-layer-group"></i>
       </button>
+    </div>
+  </div>
+
+  <div class="detail-sheet" id="detail-sheet">
+    <div class="sheet-header">
+      <h3>Strike Inspection Telemetry</h3>
+      <button class="close-sheet-btn" id="close-sheet"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="sheet-grid">
+      <div class="sheet-item">
+        <span class="sheet-label">Event Severity</span>
+        <span class="sheet-value highlight" id="inspect-severity">M 0.0</span>
+      </div>
+      <div class="sheet-item">
+        <span class="sheet-label">Distance to Impact</span>
+        <span class="sheet-value" id="inspect-distance">0 km</span>
+      </div>
+      <div class="sheet-item">
+        <span class="sheet-label">Acoustical Delay</span>
+        <span class="sheet-value" id="inspect-delay">0 sec</span>
+      </div>
+      <div class="sheet-item">
+        <span class="sheet-label">Audible Velocity Radius</span>
+        <span class="sheet-value" id="inspect-range">0 mi</span>
+      </div>
+    </div>
+    <div class="sheet-coordinates">
+      <span>Position Coordinates:</span>
+      <span id="inspect-coords" class="coords-value">0.0000, 0.0000</span>
     </div>
   </div>
 
