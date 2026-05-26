@@ -1,113 +1,299 @@
+:root {
+  --bg-glass: rgba(10, 13, 24, 0.55);
+  --border-glass: rgba(255, 255, 255, 0.07);
+  --text-main: #f5f5f7;
+  --text-muted: #86868b;
+  --accent-lightning: #ffd60a;
+  --accent-blue: #007aff;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #02040d;
-  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #020308;
+  color: var(--text-main);
   overflow: hidden;
+  height: 100vh;
+  width: 100vw;
 }
 
 #map {
   height: 100vh;
   width: 100%;
-  background: #000;
+  background: #04050a;
 }
 
+/* Glassmorphic Top HUD Container */
 .topbar {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-
+  top: env(safe-area-inset-top, 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 440px;
   z-index: 1000;
+  padding: 14px 20px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
 
-  padding: 16px;
-
-  backdrop-filter: blur(16px);
-  background: rgba(0,0,0,0.35);
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 26px;
-  letter-spacing: 1px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bolt-accent {
+  color: var(--accent-lightning);
+  filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.6));
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #status {
-  margin-top: 4px;
-  opacity: 0.7;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
+.status-pulse {
+  width: 6px;
+  height: 6px;
+  background: #34c759;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #34c759;
+  animation: pulse-status 1.8s infinite alternate;
+}
+
+@keyframes pulse-status {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Immersive Bottom HUD Architecture */
 .storm-panel {
   position: absolute;
-  bottom: 22px;
-  left: 0;
-  right: 0;
-
+  bottom: calc(env(safe-area-inset-bottom, 16px) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 440px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   gap: 12px;
-
   z-index: 1000;
 }
 
+.metrics-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .card {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(16px);
-
-  border-radius: 22px;
-
-  padding: 18px;
-
-  min-width: 150px;
-  text-align: center;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .card h2 {
   margin: 0;
-  font-size: 14px;
-  opacity: 0.7;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card h2 i {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .card div {
-  margin-top: 10px;
-  font-size: 30px;
-  font-weight: bold;
+  margin-top: 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #fff;
 }
 
-.lightning-icon {
-  font-size: 30px;
-  animation: flash 0.5s infinite alternate;
-  text-shadow:
-    0 0 10px #fff,
-    0 0 20px #6fb8ff,
-    0 0 35px #6fb8ff;
+.card div .unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 2px;
 }
 
-@keyframes flash {
-  from {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-
-  to {
-    transform: scale(1.2);
-    opacity: 1;
-  }
+/* Controls Grid Dock Row */
+.control-row {
+  display: flex;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px;
+  padding: 6px;
+  gap: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
-.ring {
-  animation: pulse 4s linear forwards;
+.action-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  padding: 12px;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes pulse {
+.action-btn:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.action-btn.active {
+  background: rgba(0, 122, 255, 0.15);
+  border-color: rgba(0, 122, 255, 0.25);
+  color: #00eaff;
+}
+
+/* Premium Animated Light Strike Mark Layout */
+.lightning-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightning-icon-inner {
+  font-size: 24px;
+  transform-origin: center;
+  animation: strike-flash-pulse 0.4s ease-out infinite alternate;
+  text-shadow: 0 0 10px #fff, 0 0 20px var(--accent-blue);
+  cursor: pointer;
+}
+
+@keyframes strike-flash-pulse {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 4px #fff); }
+}
+
+/* FIXED HTML DIVICON EXPANDING SOUNDWAVE RINGS */
+.thunder-ring-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.expanding-ring-element {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--accent-blue);
+  border-radius: 50%;
+  background: rgba(0, 122, 255, 0.03);
+  box-shadow: inset 0 0 12px rgba(0, 122, 255, 0.15);
+  animation: soundwave-outward 4.5s cubic-bezier(0.1, 0.8, 0.25, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes soundwave-outward {
   0% {
-    transform: scale(0.3);
-    opacity: 0.9;
+    width: 0px;
+    height: 0px;
+    opacity: 1;
+    border-color: #00eaff;
   }
-
+  50% {
+    border-color: var(--accent-blue);
+  }
   100% {
-    transform: scale(3);
+    width: 600px;
+    height: 600px;
     opacity: 0;
   }
+}
+
+/* User Geolocation Pulse Ring Markup */
+.user-marker-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-gps-core {
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 3px solid var(--accent-blue);
+  border-radius: 50%;
+  box-shadow: 0 0 14px var(--accent-blue);
+  position: relative;
+  z-index: 2;
+}
+
+.user-gps-pulse {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: rgba(0, 122, 255, 0.25);
+  border-radius: 50%;
+  animation: user-glow 2s infinite ease-out;
+  z-index: 1;
+}
+
+@keyframes user-glow {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Background Atmospheric Scanning Sweep effect */
+.radar-scan-line {
+  position: absolute;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: linear-gradient(rgba(0, 122, 255, 0.015) 50%, rgba(0, 234, 255, 0.04) 98%, rgba(0, 234, 255, 0.2) 100%);
+  background-size: 100% 200%;
+  animation: sweep-curtain 6s linear infinite;
+  z-index: 500;
+  pointer-events: none;
+}
+
+@keyframes sweep-curtain {
+  0% { background-position: 0% -200%; }
+  100% { background-position: 0% 200%; }
 }
