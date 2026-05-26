@@ -2,47 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Thunder Sky</title>
 
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
-
-  <meta name="theme-color" content="#050816">
-
-  <link rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  
+  <meta name="theme-color" content="#030513">
 </head>
-
 <body>
 
-<div class="topbar">
-  <h1>⚡ Thunder Sky</h1>
-  <div id="status">Live Storm Tracking</div>
-</div>
+  <div class="radar-scan-line"></div>
 
-<div id="map"></div>
-
-<div class="storm-panel">
-
-  <div class="card">
-    <h2>Nearest Strike</h2>
-    <div id="distance">-- km</div>
+  <div class="topbar">
+    <div class="brand-row">
+      <h1><i class="fa-solid fa-bolt bolt-accent"></i> Thunder Sky</h1>
+      <div class="status-indicator">
+        <div class="status-pulse"></div>
+        <span id="status">Scanning Sky Layer...</span>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Thunder Delay</h2>
-    <div id="delay">-- sec</div>
+  <div id="map"></div>
+
+  <div class="storm-panel">
+    <div class="metrics-container">
+      <div class="card">
+        <h2><i class="fa-solid fa-satellite-dish"></i> Nearest Strike</h2>
+        <div id="distance">-- <span class="unit">km</span></div>
+      </div>
+
+      <div class="card">
+        <h2><i class="fa-solid fa-wave-square"></i> Thunder Delay</h2>
+        <div id="delay">-- <span class="unit">sec</span></div>
+      </div>
+    </div>
+    
+    <div class="control-row">
+      <button class="action-btn" id="recenter-btn" title="Recenter to Location">
+        <i class="fa-solid fa-location-crosshairs"></i>
+      </button>
+      <button class="action-btn active" id="radar-toggle" title="Toggle Active Radar Filter">
+        <i class="fa-solid fa-layer-group"></i>
+      </button>
+    </div>
   </div>
 
-</div>
+  <audio id="thunderAudio" src="assets/thunder.mp3" preload="auto"></audio>
 
-<audio id="thunderAudio" src="assets/thunder.mp3"></audio>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="app.js"></script>
-
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
