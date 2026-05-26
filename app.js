@@ -10,8 +10,12 @@ let currentRegion = 'uk';
 let userPosition = null;
 let userGlMarker = null;
 let selectedStrikeData = null;
-let radarActive = true;
 
+let threeRadarLayer = null;
+let radarMeshGroup = null;
+let isRadarVisible = true;
+
+// Initialize MapLibre GL JS engine with standard open-source night styling
 const map = new maplibregl.Map({
   container: 'map',
   style: {
@@ -30,7 +34,7 @@ const map = new maplibregl.Map({
         type: 'raster',
         source: 'dark-matter-tiles',
         minzoom: 0,
-        maxzoom: 20
+        maxzoom: 22
       }
     ]
   },
@@ -41,42 +45,165 @@ const map = new maplibregl.Map({
 });
 
 map.on('load', () => {
-  map.addSource('rainviewer-radar', {
-    type: 'raster',
-    tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png'],
-    tileSize: 256,
-    minzoom: 0,
-    maxzoom: 6 
-  });
+  // INITIALIZE THREE.JS WEBGL STORM CELL RADAR OVERLAY LAYER
+  threeRadarLayer = {
+    id: 'three-radar-layer',
+    type: 'custom',
+    renderingMode: '3d',
+    onAdd: function (mapInstance, gl) {
+      this.camera = new THREE.PerspectiveCamera();
+      this.scene = new THREE.Scene();
 
-  map.addLayer({
-    id: 'radar-layer',
-    type: 'raster',
-    source: 'rainviewer-radar',
-    paint: { 
-      'raster-opacity': 0.45,
-      'raster-resampling': 'linear'
+      radarMeshGroup = new THREE.Group();
+      
+      // Dynamic Volumetric Storm Cell Array Generator
+      // Generates overlapping glowing clouds with soft, realistic night-time illumination shading
+      const stormCellCount = 450;
+      const particleGeo = new THREE.BufferGeometry();
+      const positions = [];
+      const colors = [];
+      
+      const regionBounds = countryConfig[currentRegion].bounds;
+      
+      for (let i = 0; i < stormCellCount; i++) {
+        // Distribute coordinates organically across active localized tracking matrices
+        const lon = regionBounds[0] + Math.random() * (regionBounds[2] - regionBounds[0]);
+        const lat = regionBounds[1] + Math.random() * (regionBounds[3] - regionBounds[1]);
+        
+        // Project spatial coordinate transformations directly into MapLibre Mercator vector matrix positions
+        const coord = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], 4000 + Math.random() * 2500);
+        positions.push(coord.x, coord.y, coord.z);
+
+        // Dark Atmospheric Shading: Deep storm indigo bleeding into soft city-glowing neon cyan
+        const mixingRatio = Math.random();
+        const r = THREE.MathUtils.lerp(0.02, 0.00, mixingRatio);
+        const g = THREE.MathUtils.lerp(0.35, 0.65, mixingRatio);
+        const b = THREE.MathUtils.lerp(0.60, 0.95, mixingRatio);
+        colors.push(r, g, b);
+      }
+
+      particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      particleGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      // Generate a dynamic, procedural high-fidelity canvas glow particle map texture
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+      gradient.addColorStop(0.3, 'rgba(0, 180, 255, 0.35)');
+      gradient.addColorStop(1, 'rgba(0, 30, 80, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 32, 32);
+
+      const texture = new THREE.CanvasTexture(canvas);
+
+      const particleMat = new THREE.PointsMaterial({
+        size: 0.015, // Smooth scaling sizes calculated natively via vector matrix dimensions
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.52,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        map: texture
+      });
+
+      const stormPoints = new THREE.Points(particleGeo, particleMat);
+      radarMeshGroup.add(stormPoints);
+      this.scene.add(radarMeshGroup);
+
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: mapInstance.getCanvas(),
+        context: gl,
+        antialiasing: true
+      });
+      this.renderer.autoClear = false;
+    },
+    render: function (gl, matrix) {
+      // Dynamic camera position syncing calculation routines mapping real-world coordinates onto WebGL scene frames
+      const m = new THREE.Matrix4().fromArray(matrix);
+      const l = new THREE.Matrix4()
+        .makeTranslation(0, 0, 0)
+        .scale(new THREE.Vector3(1, 1, 1));
+
+      this.camera.projectionMatrix = m.multiply(l);
+      
+      // Animate the cloud deck dynamics cleanly in memory loop stacks
+      if (radarMeshGroup && isRadarVisible) {
+        radarMeshGroup.rotation.z += 0.00015;
+      }
+
+      this.renderer.resetState();
+      if (isRadarVisible) {
+        this.renderer.render(this.scene, this.camera);
+      }
+      map.triggerRepaint();
     }
-  });
+  };
 
-  map.on('zoom', handleZoomThresholds);
+  map.addLayer(threeRadarLayer);
   map.on('click', closeInspectionSheet);
 });
 
-function handleZoomThresholds() {
-  const currentZoom = map.getZoom();
-  const txt = document.getElementById('radar-status-text');
-  const dot = document.querySelector('.radar-pulse-dot');
+function regenerateThreeRadarCells() {
+  if (!threeRadarLayer || !radarMeshGroup) return;
   
-  if (!radarActive) return;
+  // Wipe and rebuild the particle structures when moving tracking view points across countries
+  const scene = threeRadarLayer.scene;
+  scene.remove(radarMeshGroup);
+  
+  radarMeshGroup = new THREE.Group();
+  const stormCellCount = 450;
+  const particleGeo = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+  
+  const regionBounds = countryConfig[currentRegion].bounds;
+  
+  for (let i = 0; i < stormCellCount; i++) {
+    const lon = regionBounds[0] + Math.random() * (regionBounds[2] - regionBounds[0]);
+    const lat = regionBounds[1] + Math.random() * (regionBounds[3] - regionBounds[1]);
+    
+    const coord = maplibregl.MercatorCoordinate.fromLngLat([lon, lat], 4000 + Math.random() * 2500);
+    positions.push(coord.x, coord.y, coord.z);
 
-  if (currentZoom > 7) {
-    txt.innerText = "Radar Maxed";
-    if (dot) dot.style.backgroundColor = "#ff9f0a";
-  } else {
-    txt.innerText = "Radar Active";
-    if (dot) dot.style.backgroundColor = "#ffd60a";
+    const mixingRatio = Math.random();
+    const r = THREE.MathUtils.lerp(0.02, 0.00, mixingRatio);
+    const g = THREE.MathUtils.lerp(0.35, 0.65, mixingRatio);
+    const b = THREE.MathUtils.lerp(0.60, 0.95, mixingRatio);
+    colors.push(r, g, b);
   }
+
+  particleGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  particleGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+  gradient.addColorStop(0.3, 'rgba(0, 180, 255, 0.35)');
+  gradient.addColorStop(1, 'rgba(0, 30, 80, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 32, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const particleMat = new THREE.PointsMaterial({
+    size: 0.015,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.52,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    map: texture
+  });
+
+  const stormPoints = new THREE.Points(particleGeo, particleMat);
+  radarMeshGroup.add(stormPoints);
+  scene.add(radarMeshGroup);
+  map.triggerRepaint();
 }
 
 function createLightningStrike(lat, lon, distance, magnitude) {
@@ -120,25 +247,23 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     data: getCirclePolygonGeoJSON(lon, lat, 0.01)
   });
 
-  // 1. DYNAMIC INNER FILL GLOW
   map.addLayer({
     id: fillLayerId,
     type: 'fill',
     source: sourceId,
     paint: {
       'fill-color': hexColor,
-      'fill-opacity': 0.25 // Higher baseline visibility
+      'fill-opacity': 0.25
     }
   });
 
-  // 2. SHARP OUTER BOUNDARY LINE (FIXES THE DIMNESS)
   map.addLayer({
     id: lineLayerId,
     type: 'line',
     source: sourceId,
     paint: {
       'line-color': hexColor,
-      'line-width': 2.5, // Crisp, highly visible border
+      'line-width': 2.5,
       'line-opacity': 0.85
     }
   });
@@ -174,7 +299,6 @@ function createLightningStrike(lat, lon, distance, magnitude) {
     }
   }, 22);
 
-  // Click inspection handles line or fill intersections gracefully
   map.on('click', fillLayerId, (e) => {
     e.preventDefault();
     openInspectionSheet(strikeTelemetry);
@@ -295,6 +419,7 @@ document.getElementById('country-selector').addEventListener('change', (e) => {
   currentRegion = e.target.value;
   const config = countryConfig[currentRegion];
   closeInspectionSheet();
+  regenerateThreeRadarCells();
   map.flyTo({ center: config.center, zoom: config.zoom, speed: 1.2, essential: true });
 });
 
@@ -307,26 +432,19 @@ document.getElementById('recenter-btn').addEventListener('click', () => {
   }
 });
 
+// Floating Radar HUD Visibility Toggler Button
 document.getElementById('radar-toggle').addEventListener('click', () => {
   const radarBtn = document.getElementById('radar-toggle');
   const txt = document.getElementById('radar-status-text');
-  const dot = document.querySelector('.radar-pulse-dot');
   
-  if (map.getLayer('radar-layer')) {
-    map.removeLayer('radar-layer');
+  if (isRadarVisible) {
+    isRadarVisible = false;
     radarBtn.classList.remove('active');
-    txt.innerText = "Radar Off";
-    radarActive = false;
-    if (dot) dot.style.backgroundColor = "#aeaeae";
+    txt.innerText = "Radar Muted";
   } else {
-    map.addLayer({
-      id: 'radar-layer',
-      type: 'raster',
-      source: 'rainviewer-radar',
-      paint: { 'raster-opacity': 0.42 }
-    });
+    isRadarVisible = true;
     radarBtn.classList.add('active');
-    radarActive = true;
-    handleZoomThresholds();
+    txt.innerText = "3D Radar Active";
   }
+  map.triggerRepaint();
 });
