@@ -1,38 +1,65 @@
 const countryConfig = {
-  uk: { name: "United Kingdom", center: [54.5, -2.5], zoom: 6, bounds: [50.0, -7.5, 58.5, 1.5] },
-  us: { name: "United States", center: [37.8, -96.0], zoom: 4, bounds: [25.0, -124.0, 49.0, -67.0] },
-  de: { name: "Germany", center: [51.1657, 10.4515], zoom: 6, bounds: [47.4, 5.9, 54.9, 15.0] },
-  au: { name: "Australia", center: [-25.2744, 133.7751], zoom: 4, bounds: [-39.0, 113.0, -11.0, 153.0] },
-  br: { name: "Brazil", center: [-14.2350, -51.9253], zoom: 4, bounds: [-33.0, -73.0, 4.0, -34.0] }
+  uk: { name: "United Kingdom", center: [-2.5, 54.5], zoom: 5.5, bounds: [-7.5, 50.0, 1.5, 58.5] },
+  us: { name: "United States", center: [-96.0, 37.8], zoom: 3.5, bounds: [-124.0, 25.0, -67.0, 49.0] },
+  de: { name: "Germany", center: [10.4515, 51.1657], zoom: 5.5, bounds: [5.9, 47.4, 15.0, 54.9] },
+  au: { name: "Australia", center: [133.7751, -25.2744], zoom: 3.5, bounds: [113.0, -39.0, 153.0, -11.0] },
+  br: { name: "Brazil", center: [-51.9253, -14.2350], zoom: 3.5, bounds: [-73.0, -33.0, -34.0, 4.0] }
 };
 
 let currentRegion = 'uk';
 let userPosition = null;
-let userLocMarker = null;
-let selectedCircleData = null;
+let userGlMarker = null;
+let selectedStrikeData = null;
 
-// Hard restriction tracking limit parameters applied to prevent missing map tile crashes
-const map = L.map('map', {
+// Initialize MapLibre GL JS engine using completely open and free tile server architectures
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      'dark-matter-tiles': {
+        type: 'raster',
+        tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'],
+        tileSize: 256,
+        attribution: '&copy; CARTO'
+      }
+    },
+    layers: [
+      {
+        id: 'dark-matter',
+        type: 'raster',
+        source: 'dark-matter-tiles',
+        minzoom: 0,
+        maxzoom: 20 // Handles high zoom thresholds seamlessly by re-sampling tiles natively
+      }
+    ]
+  },
+  center: countryConfig[currentRegion].center,
+  zoom: countryConfig[currentRegion].zoom,
   zoomControl: false,
-  maxZoom: 16, 
-  minZoom: 3,
-  inertia: true
-}).setView(countryConfig[currentRegion].center, countryConfig[currentRegion].zoom);
+  attributionControl: false
+});
 
-// Real city lights night map configuration style setup
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap & CARTO',
-  subdomains: 'abcd',
-  maxZoom: 16
-}).addTo(map);
+map.on('load', () => {
+  // Inject streaming weather precipitation reflection radar sources directly into WebGL memory stack
+  map.addSource('rainviewer-radar', {
+    type: 'raster',
+    tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png'],
+    tileSize: 256
+  });
 
-const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png', {
-  opacity: 0.42,
-  maxZoom: 16
-}).addTo(map);
+  map.addLayer({
+    id: 'radar-layer',
+    type: 'raster',
+    source: 'rainviewer-radar',
+    paint: { 'raster-opacity': 0.42 }
+  });
+
+  // Track global dismiss triggers on the map canvas
+  map.on('click', closeInspectionSheet);
+});
 
 function createLightningStrike(lat, lon, distance, magnitude) {
-  // Determine color classifications programmatically based on seismographic magnitude severity scores
   let hexColor = '#ffd60a';
   let intensityClass = 'highlight-yellow';
   
@@ -45,71 +72,116 @@ function createLightningStrike(lat, lon, distance, magnitude) {
   }
 
   const milesHeard = parseFloat((magnitude * 1.9).toFixed(1));
-  const expansionRadiusMeters = milesHeard * 1609.34; 
   const acousticalDelay = Math.round(distance * 2.91);
 
-  // Pure circle soundwave representation - Completely clean design with no overlapping icon layer needed
-  const geoCircle = L.circle([lat, lon], {
-    radius: 0,
-    color: hexColor,
-    weight: magnitude >= 8.0 ? 3.0 : 1.8,
-    fillColor: hexColor,
-    fillOpacity: 0.14,
-    interactive: true
-  }).addTo(map);
+  // Generate unique feature ID signatures to manage the geometric shapes independently
+  const sourceId = `strike-src-${Math.random().toString(36).substr(2, 9)}`;
+  const layerId = `strike-lyr-${sourceId}`;
+
+  // Helper utility to translate real-world radius expansion steps into geographic GeoJSON coordinate arrays
+  function getCirclePolygonGeoJSON(centerLng, centerLat, radiusKm) {
+    const kmPoints = 64;
+    const coordinates = [];
+    for (let i = 0; i < kmPoints; i++) {
+      const angle = (i * 360) / kmPoints;
+      const radians = (angle * Math.PI) / 180;
+      // Degrees conversions mapping equations
+      const degreesLon = centerLng + (radiusKm / 111.32) * Math.cos(radians) / Math.cos(centerLat * Math.PI / 180);
+      const degreesLat = centerLat + (radiusKm / 110.57) * Math.sin(radians);
+      coordinates.push([degreesLon, degreesLat]);
+    }
+    coordinates.push(coordinates[0]); // Complete structural geometric polygon ring loop closure
+    return {
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [coordinates] }
+    };
+  }
+
+  // Inject empty starting node source properties directly inside MapLibre runtime layout
+  map.addSource(sourceId, {
+    type: 'geojson',
+    data: getCirclePolygonGeoJSON(lon, lat, 0.01)
+  });
+
+  map.addLayer({
+    id: layerId,
+    type: 'fill',
+    source: sourceId,
+    paint: {
+      'fill-color': hexColor,
+      'fill-opacity': 0.15,
+      'fill-outline-color': hexColor
+    }
+  });
 
   let currentStep = 0;
   const maxSteps = 90;
-  
+  const maxRadiusKm = milesHeard * 1.60934;
+
   const strikeTelemetry = { 
     lat, lon, distance, magnitude, milesHeard, acousticalDelay, 
-    intensityClass, hexColor, geoCircle 
+    intensityClass, sourceId, layerId 
   };
 
   const expansionLoop = setInterval(() => {
-    // Structural pause verification pattern executed when selection context locks focus
-    if (selectedCircleData && selectedCircleData.geoCircle === geoCircle) return;
+    if (selectedStrikeData && selectedStrikeData.sourceId === sourceId) return;
 
     currentStep++;
     if (currentStep >= maxSteps) {
       clearInterval(expansionLoop);
-      geoCircle.setRadius(expansionRadiusMeters);
-      geoCircle.setStyle({ opacity: 0.2, fillOpacity: 0.02 });
+      if (map.getSource(sourceId)) {
+        map.getSource(sourceId).setData(getCirclePolygonGeoJSON(lon, lat, maxRadiusKm));
+        map.setPaintProperty(layerId, 'fill-opacity', 0.02);
+      }
     } else {
       const progress = currentStep / maxSteps;
-      geoCircle.setRadius(expansionRadiusMeters * progress);
-      geoCircle.setStyle({
-        opacity: 1 - progress,
-        fillOpacity: 0.14 * (1 - progress)
-      });
+      const immediateRadius = maxRadiusKm * progress;
+      if (map.getSource(sourceId)) {
+        map.getSource(sourceId).setData(getCirclePolygonGeoJSON(lon, lat, immediateRadius));
+        map.setPaintProperty(layerId, 'fill-opacity', 0.15 * (1 - progress));
+      }
     }
   }, 22);
 
-  // Hook operational tracking selection interaction to wave lines directly
-  geoCircle.on('click', (e) => {
-    L.DomEvent.stopPropagation(e);
+  // MapLibre cursor inspection tap click interception triggers
+  map.on('click', layerId, (e) => {
+    e.preventDefault();
     openInspectionSheet(strikeTelemetry);
   });
 
-  // Automatically sweep the geographic map tracking layers from engine hardware loop memory after 3 minutes
+  // Mouse hover event changes map canvas cursor styles cleanly
+  map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+
+  if (distance < 15) {
+    const audio = document.getElementById("thunderAudio");
+    if (audio) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  }
+
+  // Lifespan Garbage Sweep: Wipe vector allocations out of WebGL frame memory after exactly 3 minutes
   setTimeout(() => {
-    if (selectedCircleData && selectedCircleData.geoCircle === geoCircle) {
+    if (selectedStrikeData && selectedStrikeData.sourceId === sourceId) {
       strikeTelemetry.isOrphanedPending = true;
     } else {
-      if (map.hasLayer(geoCircle)) map.removeLayer(geoCircle);
+      cleanupStrikeLayers(layerId, sourceId);
     }
   }, 180000);
 }
 
+function cleanupStrikeLayers(layerId, sourceId) {
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
+}
+
 function openInspectionSheet(telemetry) {
-  selectedCircleData = telemetry;
+  selectedStrikeData = telemetry;
 
   const severityEl = document.getElementById("inspect-severity");
   severityEl.innerText = `M ${telemetry.magnitude.toFixed(1)}`;
-  
-  // Clear any existing custom color styling properties
-  severityEl.className = "met-value";
-  severityEl.classList.add(telemetry.intensityClass);
+  severityEl.className = "met-value " + telemetry.intensityClass;
 
   document.getElementById("inspect-region").innerText = `${countryConfig[currentRegion].name} Event`;
   document.getElementById("inspect-distance").innerText = `${telemetry.distance} km`;
@@ -117,44 +189,38 @@ function openInspectionSheet(telemetry) {
   document.getElementById("inspect-range").innerText = `${telemetry.milesHeard} miles`;
   document.getElementById("inspect-coords").innerText = `${telemetry.lat.toFixed(4)}, ${telemetry.lon.toFixed(4)}`;
 
-  // Animate interface elements gracefully
-  document.getElementById("radar-control-dock").style.transform = "translate(-50%, 150%)";
-  document.getElementById("radar-control-dock").style.opacity = "0";
+  // UI Transformation pushes bottom HUD element away while sliding sheet up
+  document.getElementById("radar-toggle-container").style.transform = "translateY(150%)";
+  document.getElementById("radar-toggle-container").style.opacity = "0";
   document.getElementById("detail-sheet").classList.add("visible");
 }
 
 function closeInspectionSheet() {
-  if (!selectedCircleData) return;
+  if (!selectedStrikeData) return;
 
-  const deadData = selectedCircleData;
-  selectedCircleData = null;
+  const closedData = selectedStrikeData;
+  selectedStrikeData = null;
 
   document.getElementById("detail-sheet").classList.remove("visible");
-  document.getElementById("radar-control-dock").style.transform = "translate(-50%, 0)";
-  document.getElementById("radar-control-dock").style.opacity = "1";
+  document.getElementById("radar-toggle-container").style.transform = "translateY(0)";
+  document.getElementById("radar-toggle-container").style.opacity = "1";
 
-  // If node schedule expired during display evaluation window, scrub layer safely
-  if (deadData.isOrphanedPending) {
-    if (map.hasLayer(deadData.geoCircle)) map.removeLayer(deadData.geoCircle);
+  if (closedData.isOrphanedPending) {
+    cleanupStrikeLayers(closedData.layerId, closedData.sourceId);
   }
 }
 
-// Share Handler utilizing modern native secure Web Share standard APIs
+// Native HTML5 Mobile Share action payload injection setup
 document.getElementById('share-strike-btn').addEventListener('click', async () => {
-  if (!selectedCircleData) return;
+  if (!selectedStrikeData) return;
   
-  const shareText = `Thunder Sky Alert: Severe Storm Event detected in ${countryConfig[currentRegion].name}! Magnitude: M ${selectedCircleData.magnitude.toFixed(1)}, Audible Range: ${selectedCircleData.milesHeard} miles. Coords: ${selectedCircleData.lat.toFixed(4)}, ${selectedCircleData.lon.toFixed(4)}`;
+  const shareText = `Thunder Sky Alert: Severe Storm Event detected in ${countryConfig[currentRegion].name}! Severity Rating: M ${selectedStrikeData.magnitude.toFixed(1)}, Audible Range: ${selectedStrikeData.milesHeard} miles. Coordinates: ${selectedStrikeData.lat.toFixed(4)}, ${selectedStrikeData.lon.toFixed(4)}`;
 
   if (navigator.share) {
     try {
-      await navigator.share({
-        title: 'Tactical Storm Telemetry',
-        text: shareText,
-        url: window.location.href
-      });
+      await navigator.share({ title: 'Storm Tracking Telemetry', text: shareText, url: window.location.href });
     } catch (err) {}
   } else {
-    // Secure Fallback routine strategy for desktop running nodes
     try {
       await navigator.clipboard.writeText(shareText);
       alert("Telemetry payload copied securely to structural clipboard!");
@@ -166,8 +232,8 @@ function randomLightning() {
   const config = countryConfig[currentRegion];
   const bounds = config.bounds;
 
-  const lat = bounds[0] + (Math.random() * (bounds[2] - bounds[0]));
-  const lon = bounds[1] + (Math.random() * (bounds[3] - bounds[1]));
+  const lon = bounds[0] + (Math.random() * (bounds[2] - bounds[0]));
+  const lat = bounds[1] + (Math.random() * (bounds[3] - bounds[1]));
   const distance = Math.floor(Math.random() * 38) + 1;
   const magnitude = parseFloat((Math.random() * 9.0 + 1.0).toFixed(1));
 
@@ -176,66 +242,62 @@ function randomLightning() {
 
 let strikeTimer = setInterval(randomLightning, 3800);
 
-// Hardware Geolocation Sync System Watch Pipeline
+// Hardware Geolocation Native Pipeline Loop
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition((pos) => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
-    userPosition = [lat, lon];
+    userPosition = [lon, lat]; // MapLibre takes coordinates formatted as [Lng, Lat]
 
-    if (!userLocMarker) {
-      const userIcon = L.divIcon({
-        className: 'user-marker-wrapper',
-        html: '<div class="user-gps-core"></div>',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-      });
-      userLocMarker = L.marker(userPosition, { icon: userIcon }).addTo(map);
+    const el = document.createElement('div');
+    el.className = 'custom-gl-user-node';
+
+    if (!userGlMarker) {
+      userGlMarker = new maplibregl.Marker({ element: el })
+        .setLatLng(userPosition)
+        .addTo(map);
     } else {
-      userLocMarker.setLatLng(userPosition);
+      userGlMarker.setLatLng(userPosition);
     }
-  }, () => {}, {
-    enableHighAccuracy: true,
-    timeout: 10000
-  });
+  }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
 }
 
-// Interface Global Triggers
-map.on('click', closeInspectionSheet);
 document.getElementById('close-sheet').addEventListener('click', closeInspectionSheet);
 
 document.getElementById('country-selector').addEventListener('change', (e) => {
   currentRegion = e.target.value;
   const config = countryConfig[currentRegion];
   closeInspectionSheet();
-  map.flyTo(config.center, config.zoom, { animate: true, duration: 1.4 });
+  map.flyTo({ center: config.center, zoom: config.zoom, speed: 1.2, essential: true });
 });
 
 document.getElementById('recenter-btn').addEventListener('click', () => {
   if (userPosition) {
-    map.flyTo(userPosition, 12, { animate: true, duration: 1.2 });
+    map.flyTo({ center: userPosition, zoom: 12, speed: 1.2, essential: true });
   } else {
     const config = countryConfig[currentRegion];
-    map.flyTo(config.center, config.zoom, { animate: true, duration: 1.2 });
+    map.flyTo({ center: config.center, zoom: config.zoom, speed: 1.2, essential: true });
   }
 });
 
-// Weather Radar Controller
-const radarBtn = document.getElementById('radar-toggle');
-radarBtn.addEventListener('click', () => {
-  const statusLabel = document.getElementById('hud-radar-status');
-  const radarIcon = document.getElementById('radar-icon');
+// Floating Radar HUD Visibility Toggler Button
+document.getElementById('radar-toggle').addEventListener('click', () => {
+  const radarBtn = document.getElementById('radar-toggle');
+  const txt = document.getElementById('radar-status-text');
   
-  if (map.hasLayer(radarLayer)) {
-    map.removeLayer(radarLayer);
+  if (map.getLayer('radar-layer')) {
+    map.removeLayer('radar-layer');
     radarBtn.classList.remove('active');
-    statusLabel.innerText = "Radar Muted";
-    radarIcon.className = "fa-solid fa-pause";
+    txt.innerText = "Radar Muted";
   } else {
-    radarLayer.addTo(map);
+    map.addLayer({
+      id: 'radar-layer',
+      type: 'raster',
+      source: 'rainviewer-radar',
+      paint: { 'raster-opacity': 0.42 }
+    });
     radarBtn.classList.add('active');
-    statusLabel.innerText = "Radar Active";
-    radarIcon.className = "fa-solid fa-play";
+    txt.innerText = "Radar Active";
   }
 });
 
