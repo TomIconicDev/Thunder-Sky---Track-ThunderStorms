@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Thunder Sky</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+
+  <meta name="theme-color" content="#050816">
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+</head>
+
+<body>
+
+<div class="topbar">
+  <h1>⚡ Thunder Sky</h1>
+  <div id="status">Locating storms...</div>
+</div>
+
+<div id="map"></div>
+
+<div class="storm-panel">
+  <div class="card">
+    <h2>Nearest Strike</h2>
+    <div id="distance">-- km</div>
+  </div>
+
+  <div class="card">
+    <h2>Thunder Delay</h2>
+    <div id="delay">-- sec</div>
+  </div>
+</div>
+
+<audio id="thunderAudio" src="assets/thunder.mp3"></audio>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

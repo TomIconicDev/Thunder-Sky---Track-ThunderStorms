@@ -1,0 +1,72 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #050816;
+  color: white;
+  overflow: hidden;
+}
+
+#map {
+  height: 100vh;
+  width: 100%;
+}
+
+.topbar {
+  position: absolute;
+  z-index: 1000;
+  width: 100%;
+  padding: 14px;
+  backdrop-filter: blur(12px);
+  background: rgba(0,0,0,0.35);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+#status {
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.storm-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+
+  z-index: 1000;
+}
+
+.card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px);
+
+  border-radius: 20px;
+  padding: 18px;
+
+  min-width: 140px;
+  text-align: center;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.card div {
+  margin-top: 10px;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.lightning-icon {
+  font-size: 28px;
+  text-shadow: 0 0 15px #fff;
+}
