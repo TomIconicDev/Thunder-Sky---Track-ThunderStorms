@@ -1,4 +1,3 @@
-// Country Bounding Boxes [minLat, minLng, maxLat, maxLng] and Centers
 const countryConfig = {
   uk: { center: [54.5, -2.5], zoom: 6, bounds: [50.0, -7.5, 58.5, 1.5] },
   us: { center: [37.8, -96.0], zoom: 4, bounds: [25.0, -124.0, 49.0, -67.0] },
@@ -8,112 +7,150 @@ const countryConfig = {
 };
 
 let currentRegion = 'uk';
-let mapCenter = countryConfig[currentRegion].center;
+let userPosition = null;
+let userLocMarker = null;
 
+// Initialize map with strict maximum zoom restriction to handle tile server errors
 const map = L.map('map', {
   zoomControl: false,
-  maxZoom: 18,
+  maxZoom: 16, 
   minZoom: 3,
   inertia: true
-}).setView(mapCenter, countryConfig[currentRegion].zoom);
+}).setView(countryConfig[currentRegion].center, countryConfig[currentRegion].zoom);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; OpenStreetMap & CARTO',
   subdomains: 'abcd',
-  maxZoom: 18
+  maxZoom: 16
 }).addTo(map);
 
 const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png', {
   opacity: 0.35,
-  maxZoom: 18
+  maxZoom: 16
 }).addTo(map);
 
-// Minimal inline Vector Lightning Icon (No emojis used)
-const lightningIcon = L.divIcon({
-  html: `<svg class="lightning-svg-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
-  className: 'lightning-marker-node',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
+function createLightningStrike(lat, lon, distance, magnitude) {
+  const isUltra = magnitude >= 8.0;
+  
+  const lightningIcon = L.divIcon({
+    html: `<svg class="lightning-svg-icon ${isUltra ? 'ultra-power' : ''}" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+    className: 'lightning-marker-node',
+    iconSize: isUltra ? [24, 24] : [20, 20],
+    iconAnchor: isUltra ? [12, 12] : [10, 10]
+  });
 
-function createLightningStrike(lat, lon, distance) {
   const marker = L.marker([lat, lon], { icon: lightningIcon }).addTo(map);
 
-  // GEOGRAPHIC LAYER FIXED: Standard Leaflet Circle scaled in real-world meters
-  const physicalRadiusMeters = distance * 1000; 
-  
+  // Sound travel physics: Calculate physical audible radius in miles derived from stroke magnitude
+  const milesHeard = parseFloat((magnitude * 1.8).toFixed(1));
+  const expansionRadiusMeters = milesHeard * 1609.34; 
+
   const geoCircle = L.circle([lat, lon], {
-    radius: 0, 
-    color: '#007aff',
-    weight: 1.5,
-    fillColor: '#007aff',
+    radius: 0,
+    color: isUltra ? '#ff453a' : '#007aff',
+    weight: isUltra ? 2.5 : 1.5,
+    fillColor: isUltra ? '#ff453a' : '#007aff',
     fillOpacity: 0.15,
     interactive: false
   }).addTo(map);
 
-  // Precise Frame Interval Logic for seamless geographic expansion matching map zooming
-  let currentRadius = 0;
-  let maxSteps = 60;
   let currentStep = 0;
+  const maxSteps = 80;
 
   const expansionLoop = setInterval(() => {
     currentStep++;
     if (currentStep >= maxSteps) {
       clearInterval(expansionLoop);
-      map.removeLayer(marker);
-      map.removeLayer(geoCircle);
+      geoCircle.setRadius(expansionRadiusMeters);
+      geoCircle.setStyle({ opacity: 0.2, fillOpacity: 0.02 });
     } else {
       const progress = currentStep / maxSteps;
-      currentRadius = physicalRadiusMeters * progress;
-      
-      geoCircle.setRadius(currentRadius);
+      geoCircle.setRadius(expansionRadiusMeters * progress);
       geoCircle.setStyle({
         opacity: 1 - progress,
         fillOpacity: 0.15 * (1 - progress)
       });
     }
-  }, 30); // ~30ms update frequency loop
+  }, 25);
 
+  // Live HUD metrics dashboard display mutation
   document.getElementById("distance").innerHTML = `${distance} <span class="unit">km</span>`;
-  document.getElementById("delay").innerHTML = `${Math.round(distance * 2.91)} <span class="unit">sec</span>`;
+  document.getElementById("severity").innerHTML = `M ${magnitude.toFixed(1)}`;
+  document.getElementById("delay").innerText = `${Math.round(distance * 2.91)} sec`;
+  document.getElementById("miles-heard").innerText = `${milesHeard} mi`;
 
-  if (distance < 12) {
+  if (distance < 15) {
     const audio = document.getElementById("thunderAudio");
     if (audio) {
       audio.currentTime = 0;
       audio.play().catch(() => {});
     }
   }
+
+  // PERSISTENCE STRATEGY: Cleans up the markers after exactly 3 minutes (180000ms)
+  setTimeout(() => {
+    if (map.hasLayer(marker)) map.removeLayer(marker);
+    if (map.hasLayer(geoCircle)) map.removeLayer(geoCircle);
+  }, 180000);
 }
 
 function randomLightning() {
   const config = countryConfig[currentRegion];
   const bounds = config.bounds;
 
-  // Generate randomized coordinates locked securely inside the selected country envelope
   const lat = bounds[0] + (Math.random() * (bounds[2] - bounds[0]));
   const lon = bounds[1] + (Math.random() * (bounds[3] - bounds[1]));
-  const distance = Math.floor(Math.random() * 25) + 1;
+  const distance = Math.floor(Math.random() * 35) + 1;
+  
+  // Severity Assessment (Richter Scale Modeling)
+  const magnitude = parseFloat((Math.random() * 9.0 + 1.0).toFixed(1));
 
-  createLightningStrike(lat, lon, distance);
+  createLightningStrike(lat, lon, distance, magnitude);
 }
 
-let strikeTimer = setInterval(randomLightning, 3000);
+let strikeTimer = setInterval(randomLightning, 4000);
 
-// Dynamic Region Switching Interface 
+// Hardware Position Watch Pipeline (Continuously tracking user location correctly)
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition((pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    userPosition = [lat, lon];
+    
+    document.getElementById("status").innerText = "GPS Synchronized";
+
+    if (!userLocMarker) {
+      const userIcon = L.divIcon({
+        className: 'user-marker-wrapper',
+        html: '<div class="user-gps-core"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+      userLocMarker = L.marker(userPosition, { icon: userIcon }).addTo(map);
+    } else {
+      userLocMarker.setLatLng(userPosition);
+    }
+  }, (err) => {
+    document.getElementById("status").innerText = "Region Base Active";
+  }, {
+    enableHighAccuracy: true,
+    timeout: 10000
+  });
+}
+
 document.getElementById('country-selector').addEventListener('change', (e) => {
   currentRegion = e.target.value;
   const config = countryConfig[currentRegion];
-  
-  map.flyTo(config.center, config.zoom, {
-    animate: true,
-    duration: 1.5
-  });
+  map.flyTo(config.center, config.zoom, { animate: true, duration: 1.5 });
 });
 
 document.getElementById('recenter-btn').addEventListener('click', () => {
-  const config = countryConfig[currentRegion];
-  map.flyTo(config.center, config.zoom, { animate: true, duration: 1 });
+  if (userPosition) {
+    map.flyTo(userPosition, 12, { animate: true, duration: 1.2 });
+  } else {
+    const config = countryConfig[currentRegion];
+    map.flyTo(config.center, config.zoom, { animate: true, duration: 1.2 });
+  }
 });
 
 const radarBtn = document.getElementById('radar-toggle');
