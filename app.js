@@ -1,132 +1,119 @@
-// Global user location anchors
-let currentUserLat = 51.5072;
-let currentUserLng = -0.1276;
-let userLocMarker = null;
+// Country Bounding Boxes [minLat, minLng, maxLat, maxLng] and Centers
+const countryConfig = {
+  uk: { center: [54.5, -2.5], zoom: 6, bounds: [50.0, -7.5, 58.5, 1.5] },
+  us: { center: [37.8, -96.0], zoom: 4, bounds: [25.0, -124.0, 49.0, -67.0] },
+  de: { center: [51.1657, 10.4515], zoom: 6, bounds: [47.4, 5.9, 54.9, 15.0] },
+  au: { center: [-25.2744, 133.7751], zoom: 4, bounds: [-39.0, 113.0, -11.0, 153.0] },
+  br: { center: [-14.2350, -51.9253], zoom: 4, bounds: [-33.0, -73.0, 4.0, -34.0] }
+};
 
-// 1. INITIALIZE ENGINE MATRIX WITH RIGID ACCURATE MAX ZOOM CAP
+let currentRegion = 'uk';
+let mapCenter = countryConfig[currentRegion].center;
+
 const map = L.map('map', {
   zoomControl: false,
-  maxZoom: 18,    // Fixed out at 18. Will NEVER fetch bad missing squares again.
+  maxZoom: 18,
   minZoom: 3,
   inertia: true
-}).setView([currentUserLat, currentUserLng], 7);
+}).setView(mapCenter, countryConfig[currentRegion].zoom);
 
-// DARK ATMOSPHERIC NIGHT BASE LAYER
-const baseLayer = L.tileLayer(
-  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  {
-    attribution: '&copy; OpenStreetMap & CARTO',
-    subdomains: 'abcd',
-    maxZoom: 18
-  }
-).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap & CARTO',
+  subdomains: 'abcd',
+  maxZoom: 18
+}).addTo(map);
 
-// NOWCASTING TACTICAL RADAR REFLECTIVITY OVERLAY
-const radarLayer = L.tileLayer(
-  'https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png',
-  {
-    opacity: 0.45,
-    maxZoom: 18
-  }
-).addTo(map);
+const radarLayer = L.tileLayer('https://tilecache.rainviewer.com/v2/radar/nowcast_0/256/{z}/{x}/{y}/2/1_1.png', {
+  opacity: 0.35,
+  maxZoom: 18
+}).addTo(map);
 
-// Structural custom HTML interfaces for Lightning nodes
+// Minimal inline Vector Lightning Icon (No emojis used)
 const lightningIcon = L.divIcon({
-  html: '<div class="lightning-icon-inner">⚡</div>',
-  className: 'lightning-icon-wrapper',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15]
+  html: `<svg class="lightning-svg-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`,
+  className: 'lightning-marker-node',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
 });
 
 function createLightningStrike(lat, lon, distance) {
-  // Spawn lightning pin
   const marker = L.marker([lat, lon], { icon: lightningIcon }).addTo(map);
 
-  // FIXED FLOATING MATRIX: Spawn pure HTML DivIcons mapping perfectly to CSS timelines 
-  const soundwaveIcon = L.divIcon({
-    className: 'thunder-ring-wrapper',
-    html: '<div class="expanding-ring-element"></div>',
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
-  });
+  // GEOGRAPHIC LAYER FIXED: Standard Leaflet Circle scaled in real-world meters
+  const physicalRadiusMeters = distance * 1000; 
   
-  const soundwaveRing = L.marker([lat, lon], { icon: soundwaveIcon }).addTo(map);
+  const geoCircle = L.circle([lat, lon], {
+    radius: 0, 
+    color: '#007aff',
+    weight: 1.5,
+    fillColor: '#007aff',
+    fillOpacity: 0.15,
+    interactive: false
+  }).addTo(map);
 
-  // Safely display real-time tracking metrics 
+  // Precise Frame Interval Logic for seamless geographic expansion matching map zooming
+  let currentRadius = 0;
+  let maxSteps = 60;
+  let currentStep = 0;
+
+  const expansionLoop = setInterval(() => {
+    currentStep++;
+    if (currentStep >= maxSteps) {
+      clearInterval(expansionLoop);
+      map.removeLayer(marker);
+      map.removeLayer(geoCircle);
+    } else {
+      const progress = currentStep / maxSteps;
+      currentRadius = physicalRadiusMeters * progress;
+      
+      geoCircle.setRadius(currentRadius);
+      geoCircle.setStyle({
+        opacity: 1 - progress,
+        fillOpacity: 0.15 * (1 - progress)
+      });
+    }
+  }, 30); // ~30ms update frequency loop
+
   document.getElementById("distance").innerHTML = `${distance} <span class="unit">km</span>`;
   document.getElementById("delay").innerHTML = `${Math.round(distance * 2.91)} <span class="unit">sec</span>`;
 
-  // Local Proximity Spatial Audio trigger conditions
   if (distance < 12) {
     const audio = document.getElementById("thunderAudio");
     if (audio) {
-      audio.currentTime = 0; // Restart sound immediately if strikes overlap
+      audio.currentTime = 0;
       audio.play().catch(() => {});
     }
   }
-
-  // Persistent 20-second historical lifecycle clean sweep rule
-  setTimeout(() => {
-    if (map.hasLayer(marker)) map.removeLayer(marker);
-    if (map.hasLayer(soundwaveRing)) map.removeLayer(soundwaveRing);
-  }, 20000);
 }
 
 function randomLightning() {
-  const center = map.getCenter();
-  
-  // Calculate cluster variations surrounding the user's active viewport scope
-  const lat = center.lat + ((Math.random() - 0.5) * 1.2);
-  const lon = center.lng + ((Math.random() - 0.5) * 1.2);
-  const distance = Math.floor(Math.random() * 28) + 1;
+  const config = countryConfig[currentRegion];
+  const bounds = config.bounds;
+
+  // Generate randomized coordinates locked securely inside the selected country envelope
+  const lat = bounds[0] + (Math.random() * (bounds[2] - bounds[0]));
+  const lon = bounds[1] + (Math.random() * (bounds[3] - bounds[1]));
+  const distance = Math.floor(Math.random() * 25) + 1;
 
   createLightningStrike(lat, lon, distance);
 }
 
-// Spawn automated monitoring loop
-setInterval(randomLightning, 3800);
+let strikeTimer = setInterval(randomLightning, 3000);
 
-// NATIVE PERMISSION GEOLOCATION INTERFACE HOOK
-function trackUserDevice() {
-  document.getElementById("status").innerText = "Locating GPS...";
+// Dynamic Region Switching Interface 
+document.getElementById('country-selector').addEventListener('change', (e) => {
+  currentRegion = e.target.value;
+  const config = countryConfig[currentRegion];
   
-  navigator.geolocation.getCurrentPosition((pos) => {
-    currentUserLat = pos.coords.latitude;
-    currentUserLng = pos.coords.longitude;
-
-    map.setView([currentUserLat, currentUserLng], 10);
-    document.getElementById("status").innerText = "Live Storm Tracking";
-
-    // Re-draw or position structural marker nodes seamlessly without layout displacement artifacts
-    if (!userLocMarker) {
-      const userIcon = L.divIcon({
-        className: 'user-marker-wrapper',
-        html: '<div class="user-gps-core"></div><div class="user-gps-pulse"></div>',
-        iconSize: [26, 26],
-        iconAnchor: [13, 13]
-      });
-      userLocMarker = L.marker([currentUserLat, currentUserLng], { icon: userIcon }).addTo(map);
-    } else {
-      userLocMarker.setLatLng([currentUserLat, currentUserLng]);
-    }
-  }, (err) => {
-    document.getElementById("status").innerText = "Live (GPS Disabled)";
-    console.warn("Location permission variant missing. Preserving framework anchor.");
-  }, {
-    enableHighAccuracy: true
-  });
-}
-
-// Run location tracker initialization
-trackUserDevice();
-
-// 2. INTERACTIVE UI ACTION DOCK BINDINGS
-document.getElementById('recenter-btn').addEventListener('click', () => {
-  map.flyTo([currentUserLat, currentUserLng], 10, {
+  map.flyTo(config.center, config.zoom, {
     animate: true,
-    duration: 1.2
+    duration: 1.5
   });
-  trackUserDevice();
+});
+
+document.getElementById('recenter-btn').addEventListener('click', () => {
+  const config = countryConfig[currentRegion];
+  map.flyTo(config.center, config.zoom, { animate: true, duration: 1 });
 });
 
 const radarBtn = document.getElementById('radar-toggle');
@@ -134,11 +121,9 @@ radarBtn.addEventListener('click', () => {
   if (map.hasLayer(radarLayer)) {
     map.removeLayer(radarLayer);
     radarBtn.classList.remove('active');
-    document.getElementById("status").innerText = "Radar Layer Muted";
   } else {
     radarLayer.addTo(map);
     radarBtn.classList.add('active');
-    document.getElementById("status").innerText = "Live Storm Tracking";
   }
 });
 
