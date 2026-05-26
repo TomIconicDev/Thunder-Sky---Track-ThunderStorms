@@ -9,56 +9,41 @@
   <link rel="stylesheet" href="style.css">
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" />
   
-  <meta name="theme-color" content="#ffd60a">
+  <meta name="theme-color" content="#1c1c1e">
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="brand-row">
-      <button class="nav-utility-btn" id="recenter-btn" title="Recenter to Position">
-        <i class="fa-solid fa-location-arrow"></i>
-      </button>
-      <div class="title-wrapper">
-        <h1 class="main-title">My Lightning Tracker</h1>
-        <div class="view-pill-selector">
-          <span class="pill active">Latest</span>
-          <span class="pill">Hotspots</span>
-          <span class="pill" id="hud-radar-status">Radar Active</span>
-        </div>
-      </div>
-      <div class="selector-wrapper">
-        <select id="country-selector">
-          <option value="uk">UK</option>
-          <option value="us">US</option>
-          <option value="de">DE</option>
-          <option value="au">AU</option>
-          <option value="br">BR</option>
-        </select>
-      </div>
+  <div id="map"></div>
+
+  <div class="floating-hud-top">
+    <button class="hud-circle-btn" id="recenter-btn" title="Recenter to Position">
+      <i class="fa-solid fa-location-arrow"></i>
+    </button>
+    <div class="hud-selector-card">
+      <select id="country-selector">
+        <option value="uk">UK Tracker</option>
+        <option value="us">US Tracker</option>
+        <option value="de">DE Tracker</option>
+        <option value="au">AU Tracker</option>
+        <option value="br">BR Tracker</option>
+      </select>
     </div>
   </div>
 
-  <div id="map"></div>
-
-  <div class="playback-dock" id="radar-control-dock">
-    <div class="dock-inner">
-      <button class="radar-play-btn active" id="radar-toggle" title="Toggle Live Weather Radar">
-        <i class="fa-solid fa-play" id="radar-icon"></i>
-      </button>
-      <span class="timeline-label">Now</span>
-      <div class="timeline-track">
-        <div class="timeline-thumb"></div>
-      </div>
-    </div>
+  <div class="floating-hud-bottom" id="radar-toggle-container">
+    <button class="radar-toggle-pill active" id="radar-toggle">
+      <div class="radar-pulse-dot"></div>
+      <span id="radar-status-text">Radar Active</span>
+    </button>
   </div>
 
   <div class="detail-sheet" id="detail-sheet">
     <div class="drag-handle"></div>
     <div class="sheet-header">
       <div class="location-meta">
-        <h2 id="inspect-region">Striking Region</h2>
+        <h2 id="inspect-region">Striking Event</h2>
         <p id="inspect-coords">0.0000, 0.0000</p>
       </div>
       <button class="close-sheet-btn" id="close-sheet">
@@ -92,7 +77,7 @@
 
   <audio id="thunderAudio" src="assets/thunder.mp3" preload="auto"></audio>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
