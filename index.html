@@ -11,28 +11,30 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   
-  <meta name="theme-color" content="#030513">
+  <meta name="theme-color" content="#ffd60a">
 </head>
 <body>
 
   <div class="topbar">
     <div class="brand-row">
-      <div class="title-group">
-        <h1>Thunder Sky</h1>
-        <div class="status-indicator">
-          <div class="status-pulse"></div>
-          <span id="status">Tracking Location</span>
+      <button class="nav-utility-btn" id="recenter-btn" title="Recenter to Position">
+        <i class="fa-solid fa-location-arrow"></i>
+      </button>
+      <div class="title-wrapper">
+        <h1 class="main-title">My Lightning Tracker</h1>
+        <div class="view-pill-selector">
+          <span class="pill active">Latest</span>
+          <span class="pill">Hotspots</span>
+          <span class="pill" id="hud-radar-status">Radar Active</span>
         </div>
       </div>
-      
-      <div class="selector-group">
-        <label for="country-selector">Region:</label>
+      <div class="selector-wrapper">
         <select id="country-selector">
-          <option value="uk">United Kingdom</option>
-          <option value="us">United States</option>
-          <option value="de">Germany</option>
-          <option value="au">Australia</option>
-          <option value="br">Brazil</option>
+          <option value="uk">UK</option>
+          <option value="us">US</option>
+          <option value="de">DE</option>
+          <option value="au">AU</option>
+          <option value="br">BR</option>
         </select>
       </div>
     </div>
@@ -40,67 +42,52 @@
 
   <div id="map"></div>
 
-  <div class="storm-panel" id="main-panel">
-    <div class="metrics-container">
-      <div class="card">
-        <h2>Latest Event</h2>
-        <div id="distance">-- <span class="unit">km</span></div>
-      </div>
-
-      <div class="card">
-        <h2>Severity Rating</h2>
-        <div id="severity">M --</div>
-      </div>
-    </div>
-
-    <div class="metrics-sub-container">
-      <div class="sub-card">
-        <span class="label">Thunder Delay:</span>
-        <span id="delay" class="value">-- sec</span>
-      </div>
-      <div class="sub-card">
-        <span class="label">Audible Range:</span>
-        <span id="miles-heard" class="value">-- miles</span>
-      </div>
-    </div>
-    
-    <div class="control-row">
-      <button class="action-btn" id="recenter-btn" title="Recenter to My Position">
-        <i class="fa-solid fa-location-crosshairs"></i>
+  <div class="playback-dock" id="radar-control-dock">
+    <div class="dock-inner">
+      <button class="radar-play-btn active" id="radar-toggle" title="Toggle Live Weather Radar">
+        <i class="fa-solid fa-play" id="radar-icon"></i>
       </button>
-      <button class="action-btn active" id="radar-toggle" title="Toggle Radar Filter">
-        <i class="fa-solid fa-layer-group"></i>
-      </button>
+      <span class="timeline-label">Now</span>
+      <div class="timeline-track">
+        <div class="timeline-thumb"></div>
+      </div>
     </div>
   </div>
 
   <div class="detail-sheet" id="detail-sheet">
+    <div class="drag-handle"></div>
     <div class="sheet-header">
-      <h3>Strike Inspection Telemetry</h3>
-      <button class="close-sheet-btn" id="close-sheet"><i class="fa-solid fa-xmark"></i></button>
+      <div class="location-meta">
+        <h2 id="inspect-region">Striking Region</h2>
+        <p id="inspect-coords">0.0000, 0.0000</p>
+      </div>
+      <button class="close-sheet-btn" id="close-sheet">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
-    <div class="sheet-grid">
-      <div class="sheet-item">
-        <span class="sheet-label">Event Severity</span>
-        <span class="sheet-value highlight" id="inspect-severity">M 0.0</span>
+
+    <div class="telemetry-grid">
+      <div class="metric-item">
+        <span class="met-label">Severity Index</span>
+        <span class="met-value highlight-yellow" id="inspect-severity">M 0.0</span>
       </div>
-      <div class="sheet-item">
-        <span class="sheet-label">Distance to Impact</span>
-        <span class="sheet-value" id="inspect-distance">0 km</span>
+      <div class="metric-item">
+        <span class="met-label">Impact Proximity</span>
+        <span class="met-value" id="inspect-distance">0 km</span>
       </div>
-      <div class="sheet-item">
-        <span class="sheet-label">Acoustical Delay</span>
-        <span class="sheet-value" id="inspect-delay">0 sec</span>
+      <div class="metric-item">
+        <span class="met-label">Thunder Delay</span>
+        <span class="met-value" id="inspect-delay">0 sec</span>
       </div>
-      <div class="sheet-item">
-        <span class="sheet-label">Audible Velocity Radius</span>
-        <span class="sheet-value" id="inspect-range">0 mi</span>
+      <div class="metric-item">
+        <span class="met-label">Audible Range</span>
+        <span class="met-value" id="inspect-range">0 mi</span>
       </div>
     </div>
-    <div class="sheet-coordinates">
-      <span>Position Coordinates:</span>
-      <span id="inspect-coords" class="coords-value">0.0000, 0.0000</span>
-    </div>
+
+    <button class="share-action-btn" id="share-strike-btn">
+      Share Strike Location
+    </button>
   </div>
 
   <audio id="thunderAudio" src="assets/thunder.mp3" preload="auto"></audio>
