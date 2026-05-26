@@ -15,14 +15,25 @@
 </head>
 <body>
 
-  <div class="radar-scan-line"></div>
-
   <div class="topbar">
     <div class="brand-row">
-      <h1><i class="fa-solid fa-bolt bolt-accent"></i> Thunder Sky</h1>
-      <div class="status-indicator">
-        <div class="status-pulse"></div>
-        <span id="status">Scanning Sky Layer...</span>
+      <div class="title-group">
+        <h1>Thunder Sky</h1>
+        <div class="status-indicator">
+          <div class="status-pulse"></div>
+          <span id="status">Active Tracking</span>
+        </div>
+      </div>
+      
+      <div class="selector-group">
+        <label for="country-selector">Region:</label>
+        <select id="country-selector">
+          <option value="uk">United Kingdom</option>
+          <option value="us">United States</option>
+          <option value="de">Germany</option>
+          <option value="au">Australia</option>
+          <option value="br">Brazil</option>
+        </select>
       </div>
     </div>
   </div>
@@ -32,21 +43,21 @@
   <div class="storm-panel">
     <div class="metrics-container">
       <div class="card">
-        <h2><i class="fa-solid fa-satellite-dish"></i> Nearest Strike</h2>
+        <h2>Nearest Strike</h2>
         <div id="distance">-- <span class="unit">km</span></div>
       </div>
 
       <div class="card">
-        <h2><i class="fa-solid fa-wave-square"></i> Thunder Delay</h2>
+        <h2>Thunder Delay</h2>
         <div id="delay">-- <span class="unit">sec</span></div>
       </div>
     </div>
     
     <div class="control-row">
-      <button class="action-btn" id="recenter-btn" title="Recenter to Location">
+      <button class="action-btn" id="recenter-btn" title="Recenter View">
         <i class="fa-solid fa-location-crosshairs"></i>
       </button>
-      <button class="action-btn active" id="radar-toggle" title="Toggle Active Radar Filter">
+      <button class="action-btn active" id="radar-toggle" title="Toggle Radar Filter">
         <i class="fa-solid fa-layer-group"></i>
       </button>
     </div>
