@@ -3,8 +3,8 @@
   "short_name": "ThunderSky",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#050816",
-  "theme_color": "#050816",
+  "background_color": "#02040d",
+  "theme_color": "#02040d",
   "icons": [
     {
       "src": "assets/icon-192.png",

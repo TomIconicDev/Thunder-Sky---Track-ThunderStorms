@@ -1,19 +1,16 @@
-# Thunder Sky
+# Thunder Sky v2
 
-A live lightning tracker web app for GitHub Pages and iPhone.
+Enhanced live storm radar app.
+
+## Improvements
+- Unlimited zoom support
+- Dark realistic map
+- Night city style
+- Animated lightning strikes
+- Expanding thunder rings
+- Strike persistence for 20 seconds
+- Better mobile UI
+- Improved thunder timing
 
 ## Deploy
-1. Upload files to GitHub
-2. Enable GitHub Pages
-3. Open in Safari
-4. Add to Home Screen
-
-## APIs Used
-- OpenStreetMap
-- RainViewer Radar
-
-## Features
-- Live radar
-- Lightning effects
-- Thunder distance
-- PWA support
+Upload to GitHub and enable GitHub Pages.
